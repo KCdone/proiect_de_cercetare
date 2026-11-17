@@ -1,0 +1,10 @@
+services:
+  experiments:
+    build: .
+    volumes:
+      - ./data:/app/data
+      - ./results:/app/results
+    command: >
+      sh -c "python -m cs2cd.download -n 100 &&
+             python -m cs2cd.dataset &&
+             python -m cs2cd.run_experiments"
