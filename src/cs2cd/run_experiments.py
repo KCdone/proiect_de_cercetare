@@ -155,16 +155,42 @@ def main(kills_csv: Path, out: Path, models: list[str] | None) -> None:
 
     # distribution figure for the two most informative target features
     fig, ax = plt.subplots(1, 2, figsize=(9, 3.5))
-    for a, f, lim in [(ax[0], "err_mean_last16", 20), (ax[1], "ang_acc_abs_max", 15)]:
+    for a, f, lim in [(ax[0], "time_to_kill_ticks", 192), (ax[1], "err_at_kill", 20)]:
         for lab, name in [(0, "not cheater"), (1, "cheater")]:
             v = kills.loc[kills.label == lab, f].clip(upper=lim)
             a.hist(v, bins=40, alpha=0.55, density=True, label=name)
-        a.set_title(f); a.legend()
+        a.set_title(f + f" (clipped at {lim})"); a.legend()
     plt.tight_layout(); plt.savefig(fig_dir / "feature_distributions.png", dpi=160); plt.close()
+
+    e6_robustness(kills, out)
 
     log["runtime_s"] = round(time.time() - t0, 1)
     (out / "run_info.json").write_text(json.dumps(log, indent=2))
     print("All experiments done in", log["runtime_s"], "s")
+
+
+def e6_robustness(kills: pd.DataFrame, out: Path) -> pd.DataFrame:
+    """E6: does the detector still work without the most suspicious shortcuts?"""
+    lgbm = make_models()["LightGBM"]
+    no_vis = [f for f in FULL if f not in ("time_to_kill_ticks", "err_at_spot", "unseen_kill")]
+    settings = [
+        ("All kills, all features", kills, FULL),
+        ("Without SSG08 kills", kills[kills.weapon != "ssg08"], FULL),
+        ("Without visibility features", kills, no_vis),
+        ("Without SSG08 kills and visibility features", kills[kills.weapon != "ssg08"], no_vis),
+    ]
+    rows = []
+    for name, data, fs in settings:
+        s = summarize(cross_validate(data.reset_index(drop=True), fs, lgbm))
+        rows.append({"setting": name, "n_kills": len(data),
+                     "kill_roc_auc": s["kill_roc_auc"], "player_roc_auc": s["player_roc_auc"],
+                     "player_roc_auc_std": s["player_roc_auc_std"],
+                     "player_recall": s["player_recall"], "player_fpr": s["player_fpr"],
+                     "player_f1": s["player_f1"]})
+        print(f"E6 {name}: player AUC {s['player_roc_auc']:.3f}")
+    df = pd.DataFrame(rows)
+    df.to_csv(out / "E6_robustness.csv", index=False)
+    return df
 
 
 if __name__ == "__main__":
