@@ -1,0 +1,9 @@
+[project]
+name = "cs2cd-cheat-detection"
+version = "0.1.0"
+description = "Server-side behavioural cheat detection on the CS2CD dataset"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

@@ -60,7 +60,7 @@ def aim_error(pitch, yaw, eye_pos, target_pos) -> np.ndarray:
     """Angle (degrees) between the view direction and the eye->target line."""
     v = view_vector(pitch, yaw)
     u = np.asarray(target_pos, dtype=float) - np.asarray(eye_pos, dtype=float)
-    u = u / (np.linalg.norm(u, axis=-1, keepdims=True) + EPS)
+    u = u / np.maximum(np.linalg.norm(u, axis=-1, keepdims=True), EPS)
     cos = np.clip(np.sum(v * u, axis=-1), -1.0, 1.0)
     return np.degrees(np.arccos(cos))
 
